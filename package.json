@@ -1,0 +1,23 @@
+{
+  "name": "callbag-net",
+  "version": "1.0.0",
+  "description": "callbag sockets",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "callbag",
+    "socket",
+    "net"
+  ],
+  "author": "av8ta",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/parser": "^5.46.1",
+    "@typescript-eslint/eslint-plugin": "^5.46.1",
+    "eslint": "^8.30.0",
+    "typescript": "^4.9.4"
+  }
+}
