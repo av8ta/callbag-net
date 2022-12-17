@@ -5,6 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -15,9 +17,13 @@
   "author": "av8ta",
   "license": "MIT",
   "devDependencies": {
-    "@typescript-eslint/parser": "^5.46.1",
+    "@types/node": "^18.11.16",
     "@typescript-eslint/eslint-plugin": "^5.46.1",
+    "@typescript-eslint/parser": "^5.46.1",
     "eslint": "^8.30.0",
     "typescript": "^4.9.4"
-  }
+  },
+  "files": [
+    "./lib/*"
+  ]
 }
