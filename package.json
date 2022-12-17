@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ts-node-test test",
+    "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test"
   },
   "keywords": [
     "callbag",
@@ -17,13 +18,20 @@
   "author": "av8ta",
   "license": "MIT",
   "devDependencies": {
+    "@types/debug": "^4.1.7",
     "@types/node": "^18.11.16",
     "@typescript-eslint/eslint-plugin": "^5.46.1",
     "@typescript-eslint/parser": "^5.46.1",
+    "callbag-types": "^0.0.2",
     "eslint": "^8.30.0",
+    "nodemon": "^2.0.20",
+    "ts-node-test": "^0.2.0",
     "typescript": "^4.9.4"
   },
   "files": [
     "./lib/*"
-  ]
+  ],
+  "dependencies": {
+    "debug": "^4.3.4"
+  }
 }

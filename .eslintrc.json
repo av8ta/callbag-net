@@ -23,6 +23,6 @@
     ]
   },
   "ignorePatterns": [
-    "src/**/*.test.ts"
+    "test/**/*"
   ]
 }

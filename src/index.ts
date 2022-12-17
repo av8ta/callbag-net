@@ -1,1 +1,1 @@
-console.log('it builds')
+export { Client } from './client'
