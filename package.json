@@ -32,6 +32,8 @@
     "./lib/*"
   ],
   "dependencies": {
+    "callbag-basics-esmodules": "^4.0.0",
+    "callbag-subscribe": "^1.5.1",
     "debug": "^4.3.4"
   }
 }
