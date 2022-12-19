@@ -8,7 +8,9 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "ts-node-test test",
-    "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test"
+    "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test",
+    "lint": "eslint --ext .js,.ts .",
+    "fix": "npm run lint --fix"
   },
   "keywords": [
     "callbag",
@@ -22,8 +24,9 @@
     "@types/node": "^18.11.16",
     "@typescript-eslint/eslint-plugin": "^5.46.1",
     "@typescript-eslint/parser": "^5.46.1",
-    "callbag-types": "^0.0.2",
     "eslint": "^8.30.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-node": "^11.1.0",
     "nodemon": "^2.0.20",
     "ts-node-test": "^0.2.0",
     "typescript": "^4.9.4"

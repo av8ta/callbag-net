@@ -1,0 +1,8 @@
+.history
+.husky
+.vscode
+coverage
+dist
+lib
+node_modules
+test
