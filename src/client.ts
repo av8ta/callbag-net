@@ -1,14 +1,161 @@
-import { SourceInitiator } from 'callbag-types'
-import { SocketConnectOpts } from 'node:net'
-import { pipe, fromIter } from 'callbag-basics-esmodules'
+import { Signal, SourceInitiator, SinkTalkback, SourceTalkback, ErrorPayload, PullableSourceTalkback, Callbag } from './typings/types.js'
+import type { SocketConnectOpts } from 'node:net'
+import net from 'node:net'
+import Debug from 'debug'
+const log = Debug('callbag-net:client')
 
-export function Client(options?: SocketConnectOpts): typeof SourceInitiator {
-  console.log(options)
-  const message = 'hello\r\n'
+export type Data = string | Buffer | Uint8Array
 
-  return pipe(
-    fromIter([message])
-  )
+export function Client(options: SocketConnectOpts, connectionListener?: () => void): SourceInitiator {
+  let ready = false
+  let socket: net.Socket | null = null
+  const printOptions = JSON.stringify(options)
+  const buffer: (SourceTalkback | Data | ErrorPayload)[] = []
+  const sinks: SinkTalkback[] = []
+
+  return (signal: Signal | SourceTalkback, payload: unknown) => {
+    switch (signal) {
+      case Signal.START:
+        if (!isSinkTalkback(signal, payload)) throw new Error("SourceInitiator not passed to handshakeFactory")
+        handshakeFactory()(signal, payload)
+        break
+      case Signal.DATA:
+        if (isData(payload)) data(payload)
+        break
+      case Signal.END:
+        if (isError(payload) || payload === undefined) end(payload)
+        break
+      default:
+        if (likelyPullableSourceTalkback(signal)) pull(signal)
+        break
+    }
+
+    function handshakeFactory(): SourceInitiator {
+      return (_start, sink) => {
+        addSink(sink)
+        connect()
+
+        sink(Signal.START, talkback)
+
+        function talkback(): PullableSourceTalkback {
+          return (signal: Signal, error?: ErrorPayload) => {
+            if (isEndSignal(signal)) {
+              removeSink(sink)
+              if (error) log('Received an error from sink', error)
+            }
+            if (sinks.length === 0) {
+              disconnect()
+            }
+          }
+        }
+      }
+    }
+
+    function data(payload: Data) {
+      socket?.write(payload)
+    }
+
+    function end(error?: ErrorPayload) {
+      sendToSinks(Signal.END, error)
+      disconnect()
+    }
+
+    function pull(talkback: PullableSourceTalkback) {
+      talkback(Signal.DATA)
+    }
+
+    function sendToSinks(signal: Signal, payload?: SourceTalkback | Data | ErrorPayload) {
+      log(`Sending to client ${printOptions}:`, payload?.toString(), payload)
+      if (socket && ready) sinks.forEach(sink => {
+        if (isStartSignal(signal) && likelySourceTalkBack(payload)) handshakeBack(sink, payload)
+        else if (isDataSignal(signal) && isData(payload)) deliver(sink, payload)
+        else if (isEndSignal(signal) && (isError(payload) || payload === undefined)) terminate(sink, payload)
+      })
+      else if (payload) buffer.push(payload)
+    }
+
+    function handshakeBack(sink: SinkTalkback, sourceTalkback: SourceTalkback) {
+      sink(Signal.START, sourceTalkback)
+    }
+
+    function deliver(sink: SinkTalkback, data: Data) {
+      sink(Signal.DATA, data)
+    }
+    
+    function terminate(sink: SinkTalkback, error?: ErrorPayload) {
+      if (error) sink(Signal.END, error)
+      else sink(Signal.END)
+    }
+
+    function connect() {
+      if (!socket) {
+        socket = new net.Socket()
+        socket.on('connect', (error: Error | undefined) => {
+          if (error) throw new Error(`Error connecting with options: ${printOptions} ${error}`)
+          else {
+            log(`Connected with: ${printOptions}`)
+            let payload
+            while ((payload = buffer.pop())) {
+              if (likelySourceTalkBack(payload)) { continue }
+              if (isError(payload)) { continue } // don't send error ? if so, do: send sink(2, error)
+              if (isData(payload)) socket?.write(payload)
+            }
+          }
+        })
+        socket.on('ready', () => {
+          log('socket ready')
+          ready = true
+        })
+        socket.on('data', chunk => {
+          log(`Received from: ${printOptions}:`, chunk.toString())
+          sendToSinks(Signal.DATA, chunk)
+        })
+        socket.on('end', () => {
+          log('socket end')
+          sendToSinks(Signal.END, undefined)
+          disconnect()
+        })
+        socket.on('close', (error: Error | null) => {
+          log('socket close', error ? error : '')
+          sendToSinks(Signal.END, error ? error.toString() : undefined)
+        })
+        socket.on('error', error => {
+          log('socket close', error)
+          sendToSinks(Signal.END, error.toString())
+        })
+        socket.connect(options, connectionListener)
+      }
+    }
+
+    function disconnect() {
+      log('disconnect called')
+      socket?.destroy()
+    }
+
+    function addSink(sink: SinkTalkback) {
+      sinks.push(sink)
+    }
+    function removeSink(sink: SinkTalkback) {
+      log('removing sink')
+      if (sinks.includes(sink)) {
+        sinks.splice(sinks.indexOf(sink), 1)
+      }
+    }
+  }
 }
 
+function isStartSignal(signal: Signal): signal is Signal.START { return signal === 0 }
+function isDataSignal(signal: Signal): signal is Signal.DATA { return signal === 1 }
+function isEndSignal(signal: Signal): signal is Signal.END { return signal === 2 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function likelyCallbag(fn: any): fn is Callbag { return isFunction(fn) && fn.length === 2 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function likelySourceTalkBack(fn: any): fn is SourceTalkback { return isFunction(fn) && fn.length === 1 }
+function likelyPullableSourceTalkback(fn: unknown): fn is PullableSourceTalkback { return likelySourceTalkBack(fn) }
+function isSinkTalkback(signal: Signal, payload: unknown): payload is SinkTalkback { return isStartSignal(signal) && likelyCallbag(payload) && payload.length === 2 }
+
+function isFunction(fn: unknown) { return Object.prototype.toString.call(fn) === '[object Function]' }
+function isString(string: unknown) { return !!(typeof string === 'string' || string instanceof String) }
+function isError(payload: unknown): payload is ErrorPayload { return payload instanceof Error || isString(payload) }
+function isData(payload: unknown): payload is Data { return Buffer.isBuffer(payload) || Uint8Array.name === 'Uint8Array' }
