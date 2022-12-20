@@ -12,6 +12,7 @@ specifiers:
   eslint-plugin-import: ^2.26.0
   eslint-plugin-node: ^11.1.0
   nodemon: ^2.0.20
+  rimraf: ^3.0.2
   ts-node-test: ^0.2.0
   typescript: ^4.9.4
 
@@ -29,6 +30,7 @@ devDependencies:
   eslint-plugin-import: 2.26.0_tqyj5ytb5g6r5ett7xxedhk6eq
   eslint-plugin-node: 11.1.0_eslint@8.30.0
   nodemon: 2.0.20
+  rimraf: 3.0.2
   ts-node-test: 0.2.0_moeqx3xmzxqxagf2sz6mqkbb7m
   typescript: 4.9.4
 

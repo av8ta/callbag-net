@@ -30,5 +30,5 @@ hello
 ```
 
 ```typescript
-Client(options: net.SocketConnectOpts, connectionListener?: (() => void) | undefined): SourceInitiator
+Client(options: net.SocketConnectOpts, connectionListener?: (() => void))
 ```

@@ -1,16 +1,18 @@
 {
   "name": "callbag-net",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "callbag sockets",
   "type": "module",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "test": "ts-node-test test",
     "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test",
     "lint": "eslint --ext .js,.ts .",
-    "fix": "npm run lint --fix"
+    "fix": "npm run lint --fix",
+    "clean": "rimraf lib",
+    "prepublishOnly": "npm run clean && npm run build && npm run test"
   },
   "keywords": [
     "callbag",
@@ -28,15 +30,24 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-node": "^11.1.0",
     "nodemon": "^2.0.20",
+    "rimraf": "^3.0.2",
     "ts-node-test": "^0.2.0",
     "typescript": "^4.9.4"
   },
   "files": [
-    "./lib/*"
+    "/lib"
   ],
   "dependencies": {
     "callbag-basics-esmodules": "^4.0.0",
     "callbag-subscribe": "^1.5.1",
     "debug": "^4.3.4"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/av8ta/callbag-net.git"
+  },
+  "bugs": {
+    "url": "https://github.com/av8ta/callbag-net/issues"
+  },
+  "homepage": "https://github.com/av8ta/callbag-net#readme"
 }
