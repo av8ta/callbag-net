@@ -1,5 +1,5 @@
-import { Client } from '../lib/client.js'
-import { createServer } from './server.js'
+import { Client } from '../lib/index.js'
+import { createServer } from './server.mjs'
 import { pipe, forEach } from 'callbag-basics-esmodules'
 
 const source = Client({ port: 1234, host: 'localhost' })

@@ -2,8 +2,7 @@ import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { pipe } from 'callbag-basics-esmodules'
 import subscribe from 'callbag-subscribe'
-import { Client } from '../lib/client.js'
-import { Signal } from '../lib/typings/types.js'
+import { Client } from '../lib/index.js'
 import net from 'node:net'
 
 const port = 2222, host = 'localhost'
@@ -30,11 +29,11 @@ test('Client receives data from server', (_t, done) => {
       next: v => {
         try {
           assert.equal(v.toString(), message, 'Subscribe next had unexpected value')
-          source(Signal.END)
+          source(2)
           server.close()
           succeed(done)
         } catch (error) {
-          source(Signal.END)
+          source(2)
           server.close()
           fail(message, v.toString(), error, done)
         }

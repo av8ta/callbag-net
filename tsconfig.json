@@ -19,7 +19,7 @@
     "importsNotUsedAsValues": "error",
     "declaration": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    // "emitDecoratorMetadata": true,
     "downlevelIteration": true,
     "allowUnreachableCode": false,
     "checkJs": true,

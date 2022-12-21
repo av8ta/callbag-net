@@ -81,7 +81,7 @@ export function Client(options: SocketConnectOpts, connectionListener?: () => vo
     function deliver(sink: SinkTalkback, data: Data) {
       sink(Signal.DATA, data)
     }
-    
+
     function terminate(sink: SinkTalkback, error?: ErrorPayload) {
       if (error) sink(Signal.END, error)
       else sink(Signal.END)

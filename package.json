@@ -3,16 +3,15 @@
   "version": "1.0.2",
   "description": "callbag sockets",
   "type": "module",
-  "main": "lib/index.js",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "ts-node-test test",
-    "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test",
-    "lint": "eslint --ext .js,.ts .",
-    "fix": "npm run lint --fix",
-    "clean": "rimraf lib",
-    "prepublishOnly": "npm run clean && npm run build && npm run test"
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.cjs",
+      "import": "./lib/index.js",
+      "types": "./lib/index.d.ts"
+    }
   },
   "keywords": [
     "callbag",
@@ -21,26 +20,54 @@
   ],
   "author": "av8ta",
   "license": "MIT",
+  "scripts": {
+    "build": "tsup src/index.ts",
+    "watch": "tsup src/index.ts --watch",
+    "test": "ts-node-test test",
+    "test:watch": "nodemon node_modules/ts-node-test/dist/bin.js test",
+    "lint": "eslint --ext .js,.ts .",
+    "fix": "npm run lint --fix",
+    "clean": "rimraf lib",
+    "prepublishOnly": "npm run clean && npm run fix && npm run build && npm run test"
+  },
+  "dependencies": {
+    "debug": "^4.3.4"
+  },
   "devDependencies": {
     "@types/debug": "^4.1.7",
     "@types/node": "^18.11.16",
     "@typescript-eslint/eslint-plugin": "^5.46.1",
     "@typescript-eslint/parser": "^5.46.1",
+    "callbag-basics-esmodules": "^4.0.0",
+    "callbag-subscribe": "^1.5.1",
     "eslint": "^8.30.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-node": "^11.1.0",
     "nodemon": "^2.0.20",
     "rimraf": "^3.0.2",
     "ts-node-test": "^0.2.0",
+    "tsup": "^6.5.0",
     "typescript": "^4.9.4"
   },
   "files": [
     "/lib"
   ],
-  "dependencies": {
-    "callbag-basics-esmodules": "^4.0.0",
-    "callbag-subscribe": "^1.5.1",
-    "debug": "^4.3.4"
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "target": [
+      "node14"
+    ],
+    "format": [
+      "cjs",
+      "esm"
+    ],
+    "outDir": "lib",
+    "splitting": false,
+    "sourcemap": true,
+    "clean": true,
+    "dts": true
   },
   "repository": {
     "type": "git",
