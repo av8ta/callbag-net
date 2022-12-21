@@ -1,4 +1,5 @@
 import { Signal, SourceInitiator, SinkTalkback, SourceTalkback, ErrorPayload, PullableSourceTalkback, Callbag } from './typings/types.js'
+import type { Options } from './typings/interface.js'
 import type { SocketConnectOpts } from 'node:net'
 import net from 'node:net'
 import Debug from 'debug'
@@ -6,10 +7,14 @@ const log = Debug('callbag-net:client')
 
 export type Data = string | Buffer | Uint8Array
 
-export function Client(options: SocketConnectOpts, connectionListener?: () => void): SourceInitiator {
+export function Client(socketOptions: SocketConnectOpts, { connectionListener = undefined, retries = 0, reconnectOnEnd = false }: Options = {}): SourceInitiator {
   let ready = false
   let socket: net.Socket | null = null
-  const printOptions = JSON.stringify(options)
+  let timeout: NodeJS.Timeout | undefined = undefined
+  let attempts = 0
+  let finished = false
+
+  const printOptions = JSON.stringify(socketOptions)
   const buffer: (SourceTalkback | Data | ErrorPayload)[] = []
   const sinks: SinkTalkback[] = []
 
@@ -63,83 +68,137 @@ export function Client(options: SocketConnectOpts, connectionListener?: () => vo
     function pull(talkback: PullableSourceTalkback) {
       talkback(Signal.DATA)
     }
+  }
 
-    function sendToSinks(signal: Signal, payload?: SourceTalkback | Data | ErrorPayload) {
-      log(`Sending to client ${printOptions}:`, payload?.toString(), payload)
-      if (socket && ready) sinks.forEach(sink => {
-        if (isStartSignal(signal) && likelySourceTalkBack(payload)) handshakeBack(sink, payload)
-        else if (isDataSignal(signal) && isData(payload)) deliver(sink, payload)
-        else if (isEndSignal(signal) && (isError(payload) || payload === undefined)) terminate(sink, payload)
+
+  function handshakeBack(sink: SinkTalkback, sourceTalkback: SourceTalkback) {
+    log('Sending START handshake to sink')
+    sink(Signal.START, sourceTalkback)
+  }
+
+  function deliver(sink: SinkTalkback, data: Data) {
+    log(`Sending DATA to sink`, data?.toString(), data)
+    sink(Signal.DATA, data)
+  }
+
+  function terminate(sink: SinkTalkback, error?: ErrorPayload) {
+    log(`Sending END sink`, error?.toString())
+    if (error) sink(Signal.END, error)
+    else sink(Signal.END)
+  }
+
+  function addSink(sink: SinkTalkback) {
+    log('Adding sink')
+    sinks.push(sink)
+  }
+
+  function removeSink(sink: SinkTalkback) {
+    log('Removing sink')
+    if (sinks.includes(sink)) sinks.splice(sinks.indexOf(sink), 1)
+  }
+
+  function sendToSinks(signal: Signal, payload?: SourceTalkback | Data | ErrorPayload) {
+    if (socket && ready) sinks.forEach(sink => {
+      if (isStartSignal(signal) && likelySourceTalkBack(payload)) handshakeBack(sink, payload)
+      else if (isDataSignal(signal) && isData(payload)) deliver(sink, payload)
+      else if (isEndSignal(signal) && (isError(payload) || payload === undefined)) terminate(sink, payload)
+    })
+    else if (payload) buffer.push(payload)
+  }
+
+  function connect() {
+    if (!socket) {
+      socket = new net.Socket()
+      socket.on('connect', (error: Error | undefined) => {
+        clearTimeout(timeout)
+        if (error) throw new Error(`Error connecting with options: ${printOptions} ${error}`)
+        log(`Connected with: ${printOptions}`)
+        let payload
+        while ((payload = buffer.pop())) {
+          if (likelySourceTalkBack(payload)) { continue }
+          if (isError(payload)) { continue } // don't send error ? if so, do: send sink(2, error)
+          if (isData(payload)) socket?.write(payload)
+        }
       })
-      else if (payload) buffer.push(payload)
-    }
-
-    function handshakeBack(sink: SinkTalkback, sourceTalkback: SourceTalkback) {
-      sink(Signal.START, sourceTalkback)
-    }
-
-    function deliver(sink: SinkTalkback, data: Data) {
-      sink(Signal.DATA, data)
-    }
-
-    function terminate(sink: SinkTalkback, error?: ErrorPayload) {
-      if (error) sink(Signal.END, error)
-      else sink(Signal.END)
-    }
-
-    function connect() {
-      if (!socket) {
-        socket = new net.Socket()
-        socket.on('connect', (error: Error | undefined) => {
-          if (error) throw new Error(`Error connecting with options: ${printOptions} ${error}`)
-          else {
-            log(`Connected with: ${printOptions}`)
-            let payload
-            while ((payload = buffer.pop())) {
-              if (likelySourceTalkBack(payload)) { continue }
-              if (isError(payload)) { continue } // don't send error ? if so, do: send sink(2, error)
-              if (isData(payload)) socket?.write(payload)
-            }
-          }
-        })
-        socket.on('ready', () => {
-          log('socket ready')
-          ready = true
-        })
-        socket.on('data', chunk => {
-          log(`Received from: ${printOptions}:`, chunk.toString())
-          sendToSinks(Signal.DATA, chunk)
-        })
-        socket.on('end', () => {
-          log('socket end')
-          sendToSinks(Signal.END, undefined)
+      socket.on('ready', () => {
+        log('socket ready')
+        ready = true
+      })
+      socket.on('data', chunk => {
+        log(`Received from: ${printOptions}:`, chunk.toString())
+        sendToSinks(Signal.DATA, chunk)
+      })
+      socket.on('end', () => {
+        log('socket end')
+        if (reconnectOnEnd) {
+          tryReconnect(() => {
+            sendToSinks(Signal.END)
+            disconnect()
+          })
+        } else {
+          log(`Disconnecting from ${printOptions} on end`)
+          sendToSinks(Signal.END)
+          disconnect()
+        }
+      })
+      socket.on('close', (error: Error | null) => {
+        log('socket close', error ? error : '')
+        tryReconnect(() => {
+          sendToSinks(Signal.END)
           disconnect()
         })
-        socket.on('close', (error: Error | null) => {
-          log('socket close', error ? error : '')
-          sendToSinks(Signal.END, error ? error.toString() : undefined)
-        })
-        socket.on('error', error => {
-          log('socket close', error)
-          sendToSinks(Signal.END, error.toString())
-        })
-        socket.connect(options, connectionListener)
-      }
+        sendToSinks(Signal.END, error ? error.toString() : undefined)
+      })
+      socket.on('error', error => {
+        log('socket close', error)
+        if (reconnectOnEnd) {
+          tryReconnect(() => {
+            log(error)
+            sendToSinks(Signal.END, error ? error.toString() : undefined)
+            disconnect()
+          })
+        } else {
+          log(`Disconnecting from ${printOptions}`, error)
+          sendToSinks(Signal.END)
+          disconnect()
+        }
+      })
+      socket.connect(socketOptions, connectionListener)
     }
+  }
 
-    function disconnect() {
-      log('disconnect called')
-      socket?.destroy()
-    }
+  function disconnect() {
+    log('disconnect called')
+    socket?.destroy()
+  }
 
-    function addSink(sink: SinkTalkback) {
-      sinks.push(sink)
+  function tryReconnect(callback: () => void) {
+    const shouldReconnect = () => retries === -1 || !finished && attempts < retries
+
+    if (retries === -1) finished = false
+    if (shouldReconnect()) {
+      log(`Attempting reconnection to ${printOptions} ${retries === -1 ? 'for eternity' : `: attempt ${attempts + 1} of ${retries}`}`)
+      reconnect()
     }
-    function removeSink(sink: SinkTalkback) {
-      log('removing sink')
-      if (sinks.includes(sink)) {
-        sinks.splice(sinks.indexOf(sink), 1)
-      }
+    else {
+      log(`Ending reconnection attempts to ${printOptions}`)
+      if (callback) callback()
+      disconnect()
+      socket = null
+    }
+  }
+
+  function reconnect() {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => socket?.connect(socketOptions, () => {
+      attempts = 0
+      // connectionListener && connectionListener()
+    }
+    ), 1000)
+    attempts++
+    if (attempts >= retries && retries !== -1) {
+      disconnect()
+      finished = true
     }
   }
 }
