@@ -9,7 +9,7 @@ Read more about the Callbag standard [here](https://github.com/callbag/callbag).
 ```javascript
 // see: ./example/client.js
 import { Client } from 'callbag-net'
-import { createServer } from './server.js'
+import { createServer } from './server.mjs'
 import { pipe, forEach } from 'callbag-basics-esmodules'
 
 const source = Client({ port: 1234, host: 'localhost' })
