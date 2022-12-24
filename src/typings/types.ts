@@ -24,7 +24,13 @@ export type PullableSourceTalkback = (request: Signal.DATA | Signal.END) => void
 export type ListenableSourceTalkback = (terminate: Signal.END) => void
 export type SourceTalkback = PullableSourceTalkback | ListenableSourceTalkback
 
-export type SinkTalkback = ((start: Signal.START, sourceTalkback: SourceTalkback) => void) &
+/**
+ * Tallbags spec
+ * Greets: (signal: 0, cb: Tallbag, shadow?: Callbag) => void
+ * Delivery: (signal: 1, data: any) => void
+ * Termination: (signal: 2, err?: any) => void
+ */
+export type SinkTalkback = ((start: Signal.START, sourceTalkback: SourceTalkback, shadow?: Callbag) => void) &
   ((deliver: Signal.DATA, data: unknown) => void) &
   ((terminate: Signal.END, error?: ErrorPayload) => void)
 
@@ -36,7 +42,7 @@ export type SinkTalkback = ((start: Signal.START, sourceTalkback: SourceTalkback
  * itself or another callbag (known as the 'talkback'). In other
  * words, greets are mutual. Reciprocal greeting is called a handshake."
  */
-export type SourceInitiator = (type: Signal.START, payload: SinkTalkback) => void
+export type SourceInitiator = (signal: Signal.START, payload: SinkTalkback, shadow?: Callbag) => void
 export type SinkConnector = (source: SourceInitiator) => SourceInitiator | void
 export type SourceFactory = (...args: Array<unknown>) => SourceInitiator
 export type Operator = (...args: Array<unknown>) => SinkConnector

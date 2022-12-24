@@ -207,14 +207,14 @@ function isStartSignal(signal: Signal): signal is Signal.START { return signal =
 function isDataSignal(signal: Signal): signal is Signal.DATA { return signal === 1 }
 function isEndSignal(signal: Signal): signal is Signal.END { return signal === 2 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function likelyCallbag(fn: any): fn is Callbag { return isFunction(fn) && fn.length === 2 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function likelySourceTalkBack(fn: any): fn is SourceTalkback { return isFunction(fn) && fn.length === 1 }
+// callbags are arity 2, tallbags are arity 3
+function likelyCallbag(fn: unknown): fn is Callbag { return isFunction(fn) && (fn.length === 2 || fn.length === 3) }
+function likelySourceTalkBack(fn: unknown): fn is SourceTalkback { return isFunction(fn) && fn.length === 1 }
 function likelyPullableSourceTalkback(fn: unknown): fn is PullableSourceTalkback { return likelySourceTalkBack(fn) }
-function isSinkTalkback(signal: Signal, payload: unknown): payload is SinkTalkback { return isStartSignal(signal) && likelyCallbag(payload) && payload.length === 2 }
+function isSinkTalkback(signal: Signal, payload: unknown): payload is SinkTalkback { return isStartSignal(signal) && likelyCallbag(payload) }
 
-function isFunction(fn: unknown) { return Object.prototype.toString.call(fn) === '[object Function]' }
+// eslint-disable-next-line @typescript-eslint/ban-types
+function isFunction(fn: unknown): fn is Function { return typeof fn === 'function' || false }
 function isString(string: unknown) { return !!(typeof string === 'string' || string instanceof String) }
 function isError(payload: unknown): payload is ErrorPayload { return payload instanceof Error || isString(payload) }
 function isData(payload: unknown): payload is Data { return Buffer.isBuffer(payload) || Uint8Array.name === 'Uint8Array' }
